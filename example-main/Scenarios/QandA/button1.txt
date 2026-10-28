@@ -1,0 +1,6 @@
+image=images/consult.png
+x=0.5
+y=-2.0
+scale=3.0
+from=left
+exec=message,MODE_CONSULT

@@ -2,14 +2,49 @@ import cv2
 import mediapipe as mp
 import os
 import time
+import socket  # MMDAgent-EX 通信用
 
 from deepface import DeepFace
 import numpy as np
 
+# ==================================================
+# MMDAgent-EX ソケット通信設定
+# ==================================================
+HOST = '127.0.0.1'
+PORT =  50000 #python tougou.py MMDAgent-EXのソケットポート番号
 
-MODEL_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "face_landmarker.task")
-)
+sock = None
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    sock = s
+    print("【接続成功】MMDAgent-EX に正常に接続しました。")
+except Exception as e:
+    print(f"【注意】MMDAgent-EX 未接続: {e}")
+    print("※MMDAgent-EX を先に起動してから実行すると顔認識イベントが送信されます。")
+
+# ==================================================
+# モデルファイルのパス自動設定
+# ==================================================
+base_dir = os.path.dirname(__file__)
+
+candidates = [
+    os.path.abspath(os.path.join(base_dir, "..", "..", "face_landmarker.task")), # 2つ上
+    os.path.abspath(os.path.join(base_dir, "..", "face_landmarker.task")),       # 1つ上
+    os.path.abspath(os.path.join(base_dir, "face_landmarker.task"))              # 同階層
+]
+
+MODEL_PATH = None
+for path in candidates:
+    if os.path.exists(path):
+        MODEL_PATH = path
+        break
+
+if MODEL_PATH is None:
+    print("\n[エラー] face_landmarker.task が見つかりませんでした。")
+    exit(1)
+
+print(f"【モデル読み込み】{MODEL_PATH}")
 
 with open(MODEL_PATH, "rb") as f:
     model_data = f.read()
@@ -68,6 +103,9 @@ sur = 0
 neu = 0
 su = 0
 
+gaze_state = False
+has_sent_face_event = False  # 顔認識送信フラグ
+
 try:
     with FaceLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -89,6 +127,15 @@ try:
             detected_front = None
 
             if result.face_landmarks:
+                # --- 顔認識時に MMDAgent-EX へイベント送信 ---
+                if not has_sent_face_event and sock is not None:
+                    try:
+                        sock.sendall(b"MMD_CAMERA_GET|FACE\n")
+                        print("【送信】顔を認識したため MMD_CAMERA_GET|FACE を送信しました。")
+                        has_sent_face_event = True
+                    except Exception as e:
+                        print(f"送信エラー: {e}")
+
                 landmarks = result.face_landmarks[0]
                 positions = []
 
@@ -105,6 +152,9 @@ try:
                     x = sum(p[0] for p in positions) / len(positions)
                     y = sum(p[1] for p in positions) / len(positions)
                     detected_front = judge_gaze(x, y)
+            else:
+                # 顔が画面外に出たら再認識できるようにリセット
+                has_sent_face_event = False
 
             dt = now - last
             last = now
@@ -149,27 +199,30 @@ try:
 
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
-                ang_w = ang * 100 / su
-                dis_w = dis * 100 / su
-                fea_w = fea * 100 / su
-                hap_w = hap * 100 / su
-                sad_w = sad * 100 / su
-                sur_w = sur * 100 / su
-                neu_w = neu * 100 / su
-                print("")
-                print("---表情---")
-                print("怒り:",round(ang_w,1),"%")
-                print("嫌悪:",round(dis_w,1),"%")
-                print("恐怖:",round(fea_w,1),"%")
-                print("喜び:",round(hap_w,1),"%")
-                print("悲しみ:",round(sad_w,1),"%")
-                print("驚き:",round(sur_w,1),"%")
-                print("普通:",round(neu_w,1),"%")
+                if su > 0:
+                    ang_w = ang * 100 / su
+                    dis_w = dis * 100 / su
+                    fea_w = fea * 100 / su
+                    hap_w = hap * 100 / su
+                    sad_w = sad * 100 / su
+                    sur_w = sur * 100 / su
+                    neu_w = neu * 100 / su
+                    print("")
+                    print("---表情---")
+                    print("怒り:",round(ang_w,1),"%")
+                    print("嫌悪:",round(dis_w,1),"%")
+                    print("恐怖:",round(fea_w,1),"%")
+                    print("喜び:",round(hap_w,1),"%")
+                    print("悲しみ:",round(sad_w,1),"%")
+                    print("驚き:",round(sur_w,1),"%")
+                    print("普通:",round(neu_w,1),"%")
                 break
 
 finally:
     cap.release()
     cv2.destroyAllWindows()
+    if sock:
+        sock.close()
 
     total = front_seconds + off_seconds
     print("\n--- 最終計測結果 ---")

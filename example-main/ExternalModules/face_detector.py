@@ -37,7 +37,7 @@ def main():
         if len(faces) > 0:
             if not face_detected_sent and sock:
                 # MMDAgent-EX へ送信するメッセージ
-                message = "MMD_CAMERA_GET|FACE\n"
+                message = "FACE_DETECTED\n"
                 sock.sendall(message.encode('utf-8'))
                 print("顔を認識しました。初期挨拶メッセージを送信します。")
                 face_detected_sent = True

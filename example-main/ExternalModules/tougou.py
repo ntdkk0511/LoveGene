@@ -11,7 +11,7 @@ import numpy as np
 # MMDAgent-EX ソケット通信設定
 # ==================================================
 HOST = '127.0.0.1'
-PORT =  50000 #python tougou.py MMDAgent-EXのソケットポート番号
+PORT = 50000  # MMDAgent-EX のソケットポート番号
 
 sock = None
 try:
@@ -104,7 +104,7 @@ neu = 0
 su = 0
 
 gaze_state = False
-has_sent_face_event = False  # 顔認識送信フラグ
+greet_sent = False  # イベント連送を防止するため、初回送信済みフラグを追加
 
 try:
     with FaceLandmarker.create_from_options(options) as landmarker:
@@ -127,14 +127,19 @@ try:
             detected_front = None
 
             if result.face_landmarks:
-                # --- 顔認識時に MMDAgent-EX へイベント送信 ---
-                if not has_sent_face_event and sock is not None:
+                # --- 顔認識時に MMDAgent-EX へイベント送信（初回1回のみ）---
+                if sock is not None and not greet_sent:
                     try:
-                        sock.sendall(b"MMD_CAMERA_GET|FACE\n")
-                        print("【送信】顔を認識したため MMD_CAMERA_GET|FACE を送信しました。")
-                        has_sent_face_event = True
+                        sock.sendall(b"FACE_DETECTED\n")
+                        print("【送信】顔を認識したため FACE_DETECTED を送信しました。")
+                        greet_sent = True  # 1回送信したらフラグを立てて連送を防止
                     except Exception as e:
-                        print(f"送信エラー: {e}")
+                        print(f"送信エラー（切断されました）: {e}")
+                        try:
+                            sock.close()
+                        except Exception:
+                            pass
+                        sock = None  # 切断後はソケットをクリアしてログ連打を防止
 
                 landmarks = result.face_landmarks[0]
                 positions = []
@@ -152,9 +157,6 @@ try:
                     x = sum(p[0] for p in positions) / len(positions)
                     y = sum(p[1] for p in positions) / len(positions)
                     detected_front = judge_gaze(x, y)
-            else:
-                # 顔が画面外に出たら再認識できるようにリセット
-                has_sent_face_event = False
 
             dt = now - last
             last = now
@@ -168,7 +170,7 @@ try:
                 off_seconds += dt
 
             #############################################################
-            ######表情###################################################
+            ###### 表情解析 ######
             #############################################################
             analysis = DeepFace.analyze(frame, 
                                   actions=['emotion'],
@@ -178,25 +180,23 @@ try:
             if len(analysis) > 0:
                 emotion = analysis[0]["dominant_emotion"]
 
-                if emotion == "angry":#怒り
+                if emotion == "angry":
                     ang += 1
-                elif emotion == "disgust":#嫌悪
+                elif emotion == "disgust":
                     dis += 1
-                elif emotion == "fear":#恐怖
+                elif emotion == "fear":
                     fea += 1
-                elif emotion == "happy":#喜び
+                elif emotion == "happy":
                     hap += 1
-                elif emotion == "sad":#悲しみ
+                elif emotion == "sad":
                     sad += 1
-                elif emotion == "surprise":#驚き
+                elif emotion == "surprise":
                     sur += 1
-                elif emotion == "neutral":#普通
+                elif emotion == "neutral":
                     neu += 1
                 su += 1
 
-
             cv2.imshow("show", frame)
-
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 if su > 0:
@@ -209,20 +209,23 @@ try:
                     neu_w = neu * 100 / su
                     print("")
                     print("---表情---")
-                    print("怒り:",round(ang_w,1),"%")
-                    print("嫌悪:",round(dis_w,1),"%")
-                    print("恐怖:",round(fea_w,1),"%")
-                    print("喜び:",round(hap_w,1),"%")
-                    print("悲しみ:",round(sad_w,1),"%")
-                    print("驚き:",round(sur_w,1),"%")
-                    print("普通:",round(neu_w,1),"%")
+                    print("怒り:", round(ang_w, 1), "%")
+                    print("嫌悪:", round(dis_w, 1), "%")
+                    print("恐怖:", round(fea_w, 1), "%")
+                    print("喜び:", round(hap_w, 1), "%")
+                    print("悲しみ:", round(sad_w, 1), "%")
+                    print("驚き:", round(sur_w, 1), "%")
+                    print("普通:", round(neu_w, 1), "%")
                 break
 
 finally:
     cap.release()
     cv2.destroyAllWindows()
     if sock:
-        sock.close()
+        try:
+            sock.close()
+        except Exception:
+            pass
 
     total = front_seconds + off_seconds
     print("\n--- 最終計測結果 ---")

@@ -2,17 +2,47 @@ import cv2
 import mediapipe as mp
 import os
 import time
-import socket  # MMDAgent-EX 通信用
-
+import socket
+import threading
 from deepface import DeepFace
 import numpy as np
+from dotenv import load_dotenv  # 環境変数読み込み用
+
+# .env ファイルから環境変数をロード
+load_dotenv()
+
+# Google Gemini API 用ライブラリ
+try:
+    from google import genai
+    from google.genai import types
+    HAS_GEMINI = True
+except ImportError:
+    HAS_GEMINI = False
+    print("【警告】google-genai がインストールされていません。'pip install google-genai' を実行してください。")
 
 # ==================================================
-# MMDAgent-EX ソケット通信設定
+# 設定項目
 # ==================================================
 HOST = '127.0.0.1'
 PORT = 50000  # MMDAgent-EX のソケットポート番号
 
+# 環境変数から Gemini API キーを取得
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# ジェネ（恋愛マスター）のシステムプロンプト
+SYSTEM_INSTRUCTION = """
+あなたは恋愛相談マスターの3Dアバター「ジェネ」です。
+ユーザーからの質問や雑談に対して、以下のルールを厳守して回答してください。
+
+【ルール】
+1. 明るくフレンドリーで親しみやすい口調（「〜だよ！」「〜してみよう！」など）で答えてください。
+2. 音声合成ソフト（Open_JTalk）が読み上げるため、1〜2文程度の簡潔で短めの文章にしてください。
+3. 漢字の読み間違いを防ぐため、難解な漢字や絵文字・特殊記号（カッコなど）は使わないでください。
+"""
+
+# ==================================================
+# MMDAgent-EX ソケット通信接続
+# ==================================================
 sock = None
 try:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,17 +51,80 @@ try:
     print("【接続成功】MMDAgent-EX に正常に接続しました。")
 except Exception as e:
     print(f"【注意】MMDAgent-EX 未接続: {e}")
-    print("※MMDAgent-EX を先に起動してから実行すると顔認識イベントが送信されます。")
+
+# Gemini クライアント初期化
+gemini_client = None
+if HAS_GEMINI and GEMINI_API_KEY:
+    try:
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("【Gemini API】正常に初期化されました。")
+    except Exception as e:
+        print(f"【Gemini 初期化エラー】: {e}")
+else:
+    print("【注意】GEMINI_API_KEY が .env から読み込めなかったか設定されていません。")
 
 # ==================================================
-# モデルファイルのパス自動設定
+# LLM（Gemini）応答処理
+# ==================================================
+def ask_gemini_and_speak(user_text: str):
+    """ユーザーの発話を受け取り、Gemini で回答を生成して MMDAgent-EX に喋らせる"""
+    global sock, gemini_client
+    if not gemini_client:
+        print("【LLMエラー】Gemini API キーが設定されていないか無効です。")
+        return
+
+    print(f"\n[LLM思考中...] ユーザー: {user_text}")
+    try:
+        response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=user_text,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                temperature=0.7,
+                max_output_tokens=150,
+            ),
+        )
+        reply_text = response.text.strip().replace("\n", " ").replace("\r", "")
+        print(f"[ジェネの回答]: {reply_text}")
+
+        # MMDAgent-EX へ発話コマンドを送信
+        if sock is not None:
+            command = f"SYNTH_START|0|mei_voice_normal|{reply_text}\n"
+            sock.sendall(command.encode("utf-8"))
+            print("【送信】LLMの回答を MMDAgent-EX へ送信しました。\n")
+        else:
+            print("【注意】MMDAgent-EX と接続されていないため送信をスキップしました。\n")
+    except Exception as e:
+        print(f"【LLM生成エラー】: {e}")
+
+def console_input_loop():
+    """ターミナルからの入力（想定外の質問テスト用）を別スレッドで受付"""
+    time.sleep(2)  # 起動ログ表示後のウェイト
+    print("\n==================================================")
+    print("★ テキスト入力による LLM 応答テストが可能です。")
+    print("   質問を入力して Enter を押すとジェネが喋ります。")
+    print("==================================================\n")
+    while True:
+        try:
+            user_input = input()
+            if user_input.strip():
+                ask_gemini_and_speak(user_input.strip())
+        except (EOFError, KeyboardInterrupt):
+            break
+
+# ターミナル入力用スレッド起動
+input_thread = threading.Thread(target=console_input_loop, daemon=True)
+input_thread.start()
+
+# ==================================================
+# MediaPipe モデルファイルのパス自動設定
 # ==================================================
 base_dir = os.path.dirname(__file__)
 
 candidates = [
-    os.path.abspath(os.path.join(base_dir, "..", "..", "face_landmarker.task")), # 2つ上
-    os.path.abspath(os.path.join(base_dir, "..", "face_landmarker.task")),       # 1つ上
-    os.path.abspath(os.path.join(base_dir, "face_landmarker.task"))              # 同階層
+    os.path.abspath(os.path.join(base_dir, "..", "..", "face_landmarker.task")),
+    os.path.abspath(os.path.join(base_dir, "..", "face_landmarker.task")),
+    os.path.abspath(os.path.join(base_dir, "face_landmarker.task"))
 ]
 
 MODEL_PATH = None
@@ -63,10 +156,8 @@ EYES = [
     (362, 263, 386, 374, 473)
 ]
 
-##############################
 X_MIN, X_MAX = 0.42, 0.55
 Y_MIN, Y_MAX = 0.42, 0.55
-##############################
 
 def get_eye_position(landmarks, eye):
     left, right, top, bottom, iris = eye
@@ -84,27 +175,19 @@ def get_eye_position(landmarks, eye):
     y = (i.y - min(t.y, b.y)) / height
     return x, y
 
-
 def judge_gaze(x, y):
     return X_MIN <= x <= X_MAX and Y_MIN <= y <= Y_MAX
 
-
+# ==================================================
+# メイン処理ループ（視線・表情解析）
+# ==================================================
 cap = cv2.VideoCapture(0)
 start = last = time.monotonic()
 front_seconds = off_seconds = 0.0
 frame_number = 0
 
-ang = 0
-dis = 0
-fea = 0
-hap = 0
-sad = 0
-sur = 0
-neu = 0
-su = 0
-
+ang = dis = fea = hap = sad = sur = neu = su = 0
 gaze_state = False
-greet_sent = False  # イベント連送を防止するため、初回送信済みフラグを追加
 
 try:
     with FaceLandmarker.create_from_options(options) as landmarker:
@@ -127,20 +210,6 @@ try:
             detected_front = None
 
             if result.face_landmarks:
-                # --- 顔認識時に MMDAgent-EX へイベント送信（初回1回のみ）---
-                if sock is not None and not greet_sent:
-                    try:
-                        sock.sendall(b"FACE_DETECTED\n")
-                        print("【送信】顔を認識したため FACE_DETECTED を送信しました。")
-                        greet_sent = True  # 1回送信したらフラグを立てて連送を防止
-                    except Exception as e:
-                        print(f"送信エラー（切断されました）: {e}")
-                        try:
-                            sock.close()
-                        except Exception:
-                            pass
-                        sock = None  # 切断後はソケットをクリアしてログ連打を防止
-
                 landmarks = result.face_landmarks[0]
                 positions = []
 
@@ -150,8 +219,7 @@ try:
                         positions.append(pos)
 
                     p = landmarks[eye[4]]
-                    cv2.circle(frame, (int(p.x * w), int(p.y * h)),
-                               4, (0, 255, 0), -1)
+                    cv2.circle(frame, (int(p.x * w), int(p.y * h)), 4, (0, 255, 0), -1)
 
                 if positions:
                     x = sum(p[0] for p in positions) / len(positions)
@@ -169,53 +237,37 @@ try:
             else:
                 off_seconds += dt
 
-            #############################################################
-            ###### 表情解析 ######
-            #############################################################
-            analysis = DeepFace.analyze(frame, 
-                                  actions=['emotion'],
-                                  detector_backend='opencv',
-                                  enforce_detection=False)
+            # 表情解析
+            analysis = DeepFace.analyze(
+                frame, 
+                actions=['emotion'],
+                detector_backend='opencv',
+                enforce_detection=False
+            )
 
             if len(analysis) > 0:
                 emotion = analysis[0]["dominant_emotion"]
-
-                if emotion == "angry":
-                    ang += 1
-                elif emotion == "disgust":
-                    dis += 1
-                elif emotion == "fear":
-                    fea += 1
-                elif emotion == "happy":
-                    hap += 1
-                elif emotion == "sad":
-                    sad += 1
-                elif emotion == "surprise":
-                    sur += 1
-                elif emotion == "neutral":
-                    neu += 1
+                if emotion == "angry": ang += 1
+                elif emotion == "disgust": dis += 1
+                elif emotion == "fear": fea += 1
+                elif emotion == "happy": hap += 1
+                elif emotion == "sad": sad += 1
+                elif emotion == "surprise": sur += 1
+                elif emotion == "neutral": neu += 1
                 su += 1
 
             cv2.imshow("show", frame)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 if su > 0:
-                    ang_w = ang * 100 / su
-                    dis_w = dis * 100 / su
-                    fea_w = fea * 100 / su
-                    hap_w = hap * 100 / su
-                    sad_w = sad * 100 / su
-                    sur_w = sur * 100 / su
-                    neu_w = neu * 100 / su
-                    print("")
-                    print("---表情---")
-                    print("怒り:", round(ang_w, 1), "%")
-                    print("嫌悪:", round(dis_w, 1), "%")
-                    print("恐怖:", round(fea_w, 1), "%")
-                    print("喜び:", round(hap_w, 1), "%")
-                    print("悲しみ:", round(sad_w, 1), "%")
-                    print("驚き:", round(sur_w, 1), "%")
-                    print("普通:", round(neu_w, 1), "%")
+                    print("\n--- 表情計測割合 ---")
+                    print("怒り:", round(ang * 100 / su, 1), "%")
+                    print("嫌悪:", round(dis * 100 / su, 1), "%")
+                    print("恐怖:", round(fea * 100 / su, 1), "%")
+                    print("喜び:", round(hap * 100 / su, 1), "%")
+                    print("悲しみ:", round(sad * 100 / su, 1), "%")
+                    print("驚き:", round(sur * 100 / su, 1), "%")
+                    print("普通:", round(neu * 100 / su, 1), "%")
                 break
 
 finally:
@@ -231,9 +283,6 @@ finally:
     print("\n--- 最終計測結果 ---")
     print(f"正面:      {front_seconds:.2f}秒")
     print(f"正面以外: {off_seconds:.2f}秒")
-
     if total > 0:
         print(f"正面の割合:      {front_seconds / total * 100:.1f}%")
         print(f"正面以外の割合:  {off_seconds / total * 100:.1f}%")
-    else:
-        print("計測時間が短いため、割合を計算できません。")

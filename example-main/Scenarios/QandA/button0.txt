@@ -1,0 +1,6 @@
+image=images/practice.png
+x=0.5
+y=-1.0
+scale=3.0
+from=left
+exec=message,MODE_PRACTICE

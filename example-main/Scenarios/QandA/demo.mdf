@@ -1,0 +1,10 @@
+#### Speech recognition
+## Japanese demo
+Plugin_Julius_lang=ja
+Plugin_Julius_conf=dnn
+Plugin_Julius_fstfile=love.fst
+
+#### tcp/ip
+#Plugin_Remote_EnableServer=true
+#Plugin_Remote_ListenPort=60001
+#Plugin_AnyScript_Command="..\..\..\python.exe" -u "..\..\ExternalModules\kari4.py"

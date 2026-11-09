@@ -17,6 +17,5 @@ ${action_dir}=${motion_dir}/action
 INIT1 WAIT:
     <eps> CAMERA|0,14.75,0|4.5,0,0|22.4|27.0
     <eps> CAPTION_SETSTYLE|gene_style|default|0.15,0.15,0.2,1|0,0,0,0,0|0,0,0,0,0|0,0,0,0
-
 ## メインシナリオ読み込み
 %INCLUDE(love.fst)

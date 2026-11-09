@@ -4,6 +4,8 @@ Plugin_Julius_lang=ja
 Plugin_Julius_conf=dnn
 Plugin_Julius_fstfile=love.fst
 
+show_caption=false
+
 #### tcp/ip
 #Plugin_Remote_EnableServer=true
 #Plugin_Remote_ListenPort=60001

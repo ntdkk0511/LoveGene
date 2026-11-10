@@ -44,7 +44,7 @@ PRAC_NG_SPEAK PRAC_FINISHED:
     <eps> SYNTH_START|0|mei_voice_normal|目線が泳いでいるよ！照れないで目をみて！
 
 # 応答完了後、評価フローへ移行
-PRAC_FINISHED NE:
+PRAC_FINISHED N:
     SYNTH_EVENT_STOP|0 <eps>
 
 # ------------------------------------------
@@ -55,14 +55,19 @@ PRAC_FINISHED NE:
 WAIT PRAC_RECOG_LISTEN:
     KEY|1 <eps>
 
-WAIT NE:
-    KEY|2 <eps>
+WAIT N:
+    KEY|6 <eps>
 
-NE NEX:
+N NE:
+    <eps> CAPTION_START|gene_text|gene_style|おつかれさま|1.0|CENTER|0.22|18000
     <eps> SYNTH_START|0|mei_voice_normal|おつかれさま
 
+NE NEX:
+    SYNTH_EVENT_STOP|0 <eps>
+
 NEX NEXT:
-    SYNTH_EVENT_STOP|0 SYNTH_START|0|mei_voice_normal|それじゃあ評価をしていくね
+    <eps> CAPTION_START|gene_text|gene_style|それじゃあ評価をしていくね|1.0|CENTER|0.22|18000
+    <eps> SYNTH_START|0|mei_voice_normal|それじゃあ評価をしていくね
 
 NEXT NEXT1:
     SYNTH_EVENT_STOP|0 <eps>
@@ -83,7 +88,8 @@ NEXT2 NEXT3:
 
 # 表情画像削除
 NEXT3 NEXT4:
-    SYNTH_EVENT_STOP|0 WINDOWFRAME_DELETE|result_h
+    SYNTH_EVENT_STOP|0 <eps> 
+    <eps> WINDOWFRAME_DELETE|result_h
 
 # --- 視線評価・画像表示 ---
 NEXT4 NEXT5:

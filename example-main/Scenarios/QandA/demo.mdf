@@ -9,4 +9,4 @@ show_caption=false
 #### tcp/ip
 #Plugin_Remote_EnableServer=true
 #Plugin_Remote_ListenPort=60001
-#Plugin_AnyScript_Command="..\..\..\python.exe" -u "..\..\ExternalModules\kari4.py"
+#Plugin_AnyScript_Command="..\..\..\python.exe" -u "..\..\ExternalModules\tougou.py"

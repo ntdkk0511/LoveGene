@@ -22,7 +22,7 @@ PRAC_STEP1_RECOG PRAC_NG_SPEAK:
 # --- 判定結果：OK ---
 PRAC_OK_SPEAK WAIT:
     <eps> CAPTION_START|gene_text|gene_style|わぁ…！そんな目で見つめられたら、\n絶対OKしちゃうよ！|1.0|CENTER|0.22|18000
-    <eps> MOTION_ADD|0|smile|${action_dir}/mei/肯定する1.vmd|PART|ONCE|ON|OFF
+    <eps> MOTION_ADD|0|smile|${action_dir}/全身ハート.vmd|PART|ONCE|ON|OFF
     MOTION_EVENT_ADD|0|smile SYNTH_START|0|mei_voice_normal|わぁ…！そんな目で見つめられたら、絶対OKしちゃうよ！
 
 # --- 判定結果：NG ---

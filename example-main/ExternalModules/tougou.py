@@ -447,6 +447,7 @@ def sisen_s(cap):
                     hap_w = hap * 100 / su
                     sad_w = sad * 100 / su
                     sur_w = sur * 100 / su
+                    neu_w = neu * 100 / su
                 else:
                     print("【警告】DeepFaceの解析に一度も成功していません。")
                     ang_w = dis_w = fea_w = hap_w = sad_w = sur_w = 0
@@ -468,14 +469,15 @@ def sisen_s(cap):
                     "怒り": round(ang_w, 1),
                     "悲しみ": round(sad_w, 1),
                     "驚き": round(sur_w, 1),
-                    "恐怖": round(fea_w, 1)
+                    "恐怖": round(fea_w, 1),
+                    "普通": round(neu_w, 1),
                 }
 
                 print("【グラフ生成開始】")
 
                 create_graph(
                     emotion_result,
-                    ["#36D6E7", "#A78BFA", "#FF7373", "#F5B942", "#6EE7A0", "#41F750"],
+                    ["#36D6E7", "#A78BFA", "#FF7373", "#F5B942", "#6EE7A0", "#41F750","#21AB50"],
                     "表情評価",
                     "result_h"
                 )
@@ -499,7 +501,7 @@ def sisen_s(cap):
         if "表情" in msg:
             time.sleep(4)
 
-            happy_w = 70  # round(hap_w, 1)
+            happy_w = round(hap_w, 1)
 
             if happy_w > 80:
                 send_message(b"verygood_h")
@@ -511,7 +513,7 @@ def sisen_s(cap):
         if "視線" in msg:
             time.sleep(4)
 
-            front_s_w = 90  # front_seconds / total * 100
+            front_s_w = front_seconds / total * 100
 
             if front_s_w > 80:
                 send_message(b"verygood_s")

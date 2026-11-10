@@ -1,32 +1,104 @@
-
 # ==========================================
-# モード②：告白予行モード
+# モード②：告白予行モード（計測・評価機能付き）
 # ==========================================
 
+# ------------------------------------------
+# シナリオ開始
+# ------------------------------------------
 PRACTICE_START PRAC_STEP1_SPEAK:
     <eps> CAPTION_START|gene_text|gene_style|私に告白して練習すれば、きっとうまくいく！\nさあ、はじめよう！\n私の目をしっかり見て\n『好きです』って言ってみて！|1.0|CENTER|0.22|18000
     <eps> MOTION_ADD|0|app_welcome|${action_dir}/歓迎する1.vmd|PART|ONCE|ON|OFF
     <eps> SYNTH_START|0|mei_voice_normal|私に告白して練習すればきっとうまくいく！さあはじめよ！私の目をしっかり見て『好きです』って言ってみて！
 
-PRAC_STEP1_SPEAK PRAC_STEP1_RECOG:
+# セリフが言い終わったら音声認識待ちへ
+PRAC_STEP1_SPEAK PRAC_RECOG_LISTEN:
     SYNTH_EVENT_STOP|0 <eps>
 
-# 「好きです」の認識
-PRAC_STEP1_RECOG PRAC_OK_SPEAK:
-    @RECOG_EVENT_STOP|.*好きです.*@ <eps>
-    +KEY|o <eps>
+# ------------------------------------------
+# ユーザーの告白認識
+# ------------------------------------------
 
-PRAC_STEP1_RECOG PRAC_NG_SPEAK:
+# 「好き」「すき」「スキ」が含まれる音声認識（OK判定）
+PRAC_RECOG_LISTEN PRAC_OK_SPEAK:
+    @RECOG_EVENT_STOP|.*好き.*@ <eps>
+    +@RECOG_EVENT_STOP|.*すき.*@ <eps>
+    +@RECOG_EVENT_STOP|.*スキ.*@ <eps>
+    +KEY|o <eps>
+    +KEY|O <eps>
+
+# NG判定（キー操作等）
+PRAC_RECOG_LISTEN PRAC_NG_SPEAK:
     KEY|n <eps>
+    +KEY|N <eps>
 
 # --- 判定結果：OK ---
-PRAC_OK_SPEAK WAIT:
+PRAC_OK_SPEAK PRAC_FINISHED:
     <eps> CAPTION_START|gene_text|gene_style|わぁ…！そんな目で見つめられたら、\n絶対OKしちゃうよ！|1.0|CENTER|0.22|18000
-    <eps> MOTION_ADD|0|smile|${action_dir}/mei/肯定する1.vmd|PART|ONCE|ON|OFF
-    MOTION_EVENT_ADD|0|smile SYNTH_START|0|mei_voice_normal|わぁ…！そんな目で見つめられたら、絶対OKしちゃうよ！
+    <eps> MOTION_ADD|0|smile|${action_dir}/肯定する1.vmd|PART|ONCE|ON|OFF
+    <eps> SYNTH_START|0|mei_voice_normal|わぁ…！そんな目で見つめられたら、絶対OKしちゃうよ！
 
 # --- 判定結果：NG ---
-PRAC_NG_SPEAK WAIT:
+PRAC_NG_SPEAK PRAC_FINISHED:
     <eps> CAPTION_START|gene_text|gene_style|目線が泳いでいるよ！\n照れないで目をみて！|1.0|CENTER|0.22|18000
-    <eps> MOTION_ADD|0|smile|${action_dir}/mei/喜ぶ1.vmd|PART|ONCE|ON|OFF
+    <eps> MOTION_ADD|0|smile|${action_dir}/喜ぶ1.vmd|PART|ONCE|ON|OFF
     <eps> SYNTH_START|0|mei_voice_normal|目線が泳いでいるよ！照れないで目をみて！
+
+# 応答完了後、評価フローへ移行
+PRAC_FINISHED NE:
+    SYNTH_EVENT_STOP|0 <eps>
+
+# ------------------------------------------
+# 終了・評価フロー
+# ------------------------------------------
+
+# 【テスト用】キー1で直接認識待ちへ、キー2で評価へ移行
+WAIT PRAC_RECOG_LISTEN:
+    KEY|1 <eps>
+
+WAIT NE:
+    KEY|2 <eps>
+
+NE NEX:
+    <eps> SYNTH_START|0|mei_voice_normal|おつかれさま
+
+NEX NEXT:
+    SYNTH_EVENT_STOP|0 SYNTH_START|0|mei_voice_normal|それじゃあ評価をしていくね
+
+NEXT NEXT1:
+    SYNTH_EVENT_STOP|0 <eps>
+
+# --- 表情評価・画像表示 ---
+NEXT1 NEXT2:
+    <eps> SYNTH_START|0|mei_voice_normal|表情の評価
+    <eps> WINDOWFRAME_ADD|result_h|result_h.png
+
+NEXT2 NEXT3:
+    MMD_CAMERA_GET|verygood_h SYNTH_START|0|mei_voice_happy|よくできたね！
+
+NEXT2 NEXT3:
+    MMD_CAMERA_GET|good_h SYNTH_START|0|mei_voice_normal|いいね！
+
+NEXT2 NEXT3:
+    MMD_CAMERA_GET|bad_h SYNTH_START|0|mei_voice_normal|もう少し頑張ってみよう！
+
+# 表情画像削除
+NEXT3 NEXT4:
+    SYNTH_EVENT_STOP|0 WINDOWFRAME_DELETE|result_h
+
+# --- 視線評価・画像表示 ---
+NEXT4 NEXT5:
+    <eps> SYNTH_START|0|mei_voice_normal|視線の評価
+    <eps> WINDOWFRAME_ADD|result_s|result_s.png
+
+NEXT5 NEXT7:
+    MMD_CAMERA_GET|verygood_s SYNTH_START|0|mei_voice_happy|よくできたね！
+
+NEXT5 NEXT7:
+    MMD_CAMERA_GET|good_s SYNTH_START|0|mei_voice_normal|いいね！
+
+NEXT5 NEXT7:
+    MMD_CAMERA_GET|bad_s SYNTH_START|0|mei_voice_normal|もう少し頑張ってみよう！
+
+# 視線画像削除して待機状態へ
+NEXT7 WAIT:
+    SYNTH_EVENT_STOP|0 WINDOWFRAME_DELETE|result_s

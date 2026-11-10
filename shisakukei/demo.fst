@@ -5,7 +5,7 @@ ${image_dir}=${lib_dir}/images
 
 0 INIT1:
     <eps> STAGE|${image_dir}/floor_white.png,${image_dir}/back_lightyellow.png
-    <eps> MODEL_ADD|0|${lib_dir}/gene/Gene.pmd
+    <eps> MODEL_ADD|0|${lib_dir}/gene/Gene.pmx
     MODEL_EVENT_ADD|0  MOTION_ADD|0|base|${lib_dir}/motions/wait/01_Wait.vmd|FULL|LOOP|ON|OFF
     <eps> WINDOWFRAME|${image_dir}/frame_green.png
 #    <eps> MODEL_BINDFACE|0|メッシュなし|1

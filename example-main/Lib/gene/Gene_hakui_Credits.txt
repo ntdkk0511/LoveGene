@@ -1,0 +1,8 @@
+CG-CA Gene (c) 2023 by Nagoya Institute of Technology, Moonshot R&D Goal 1 Avatar Symbiotic Society
+CC BY 4.0 https://creativecommons.org/licenses/by/4.0/
+https://github.com/mmdagent-ex/gene
+
+Lab coat: siroihakumai, https://booth.pm/ja/items/6262104
+
+Changes: fitted and rigged the coat for Gene.
+Open Gene_hakui.pmx in MikuMikuDance. Keep tex/ next to the model.

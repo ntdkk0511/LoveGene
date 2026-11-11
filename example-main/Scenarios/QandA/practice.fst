@@ -44,7 +44,7 @@ PRAC_NG_SPEAK PRAC_FINISHED:
     <eps> SYNTH_START|0|mei_voice_normal|目線が泳いでいるよ！照れないで目をみて！
 
 # 応答完了後、評価フローへ移行
-PRAC_FINISHED NE:
+PRAC_FINISHED N:
     SYNTH_EVENT_STOP|0 <eps>
 
 # ------------------------------------------
@@ -55,14 +55,19 @@ PRAC_FINISHED NE:
 WAIT PRAC_RECOG_LISTEN:
     KEY|1 <eps>
 
-WAIT NE:
-    KEY|2 <eps>
+WAIT N:
+    KEY|6 <eps>
 
-NE NEX:
+N NE:
+    <eps> CAPTION_START|gene_text|gene_style|おつかれさま|1.0|CENTER|0.22|18000
     <eps> SYNTH_START|0|mei_voice_normal|おつかれさま
 
+NE NEX:
+    SYNTH_EVENT_STOP|0 <eps>
+
 NEX NEXT:
-    SYNTH_EVENT_STOP|0 SYNTH_START|0|mei_voice_normal|それじゃあ評価をしていくね
+    <eps> CAPTION_START|gene_text|gene_style|それじゃあ評価をしていくね|1.0|CENTER|0.22|18000
+    <eps> SYNTH_START|0|mei_voice_normal|それじゃあ評価をしていくね
 
 NEXT NEXT1:
     SYNTH_EVENT_STOP|0 <eps>
@@ -70,34 +75,55 @@ NEXT NEXT1:
 # --- 表情評価・画像表示 ---
 NEXT1 NEXT2:
     <eps> SYNTH_START|0|mei_voice_normal|表情の評価
+    <eps> CAPTION_START|gene_text|gene_style|表情の評価|1.0|CENTER|0.22|18000
     <eps> WINDOWFRAME_ADD|result_h|result_h.png
 
-NEXT2 NEXT3:
-    MMD_CAMERA_GET|verygood_h SYNTH_START|0|mei_voice_happy|よくできたね！
+NEXT2 NEXT21:
+    MMD_CAMERA_GET|verygood_h CAPTION_START|gene_text|gene_style|よくできたね|1.0|CENTER|0.22|18000
 
-NEXT2 NEXT3:
-    MMD_CAMERA_GET|good_h SYNTH_START|0|mei_voice_normal|いいね！
+NEXT21 NEXT3:
+    <eps> SYNTH_START|0|mei_voice_happy|よくできたね！
 
-NEXT2 NEXT3:
-    MMD_CAMERA_GET|bad_h SYNTH_START|0|mei_voice_normal|もう少し頑張ってみよう！
+NEXT2 NEXT22:
+    MMD_CAMERA_GET|good_h CAPTION_START|gene_text|gene_style|いいね|1.0|CENTER|0.22|18000
+
+NEXT22 NEXT3:
+    <eps> SYNTH_START|0|mei_voice_normal|いいね！
+
+NEXT2 NEXT23:
+    MMD_CAMERA_GET|bad_h CAPTION_START|gene_text|gene_style|もう少し頑張ってみよう|1.0|CENTER|0.22|18000 
+
+NEXT23 NEXT3:
+    <eps> SYNTH_START|0|mei_voice_normal|もう少し頑張ってみよう！
 
 # 表情画像削除
 NEXT3 NEXT4:
-    SYNTH_EVENT_STOP|0 WINDOWFRAME_DELETE|result_h
+    SYNTH_EVENT_STOP|0 <eps> 
+    <eps> WINDOWFRAME_DELETE|result_h
 
 # --- 視線評価・画像表示 ---
 NEXT4 NEXT5:
     <eps> SYNTH_START|0|mei_voice_normal|視線の評価
+    <eps> CAPTION_START|gene_text|gene_style|視線の評価|1.0|CENTER|0.22|18000
     <eps> WINDOWFRAME_ADD|result_s|result_s.png
 
-NEXT5 NEXT7:
-    MMD_CAMERA_GET|verygood_s SYNTH_START|0|mei_voice_happy|よくできたね！
+NEXT5 NEXT71:
+    MMD_CAMERA_GET|verygood_s CAPTION_START|gene_text|gene_style|よくできたね|1.0|CENTER|0.22|18000
 
-NEXT5 NEXT7:
-    MMD_CAMERA_GET|good_s SYNTH_START|0|mei_voice_normal|いいね！
+NEXT71 NEXT7:
+    <eps> SYNTH_START|0|mei_voice_happy|よくできたね
 
-NEXT5 NEXT7:
-    MMD_CAMERA_GET|bad_s SYNTH_START|0|mei_voice_normal|もう少し頑張ってみよう！
+NEXT5 NEXT72:
+    MMD_CAMERA_GET|good_s CAPTION_START|gene_text|gene_style|いいね|1.0|CENTER|0.22|18000
+
+NEXT72 NEXT7:
+    <eps> SYNTH_START|0|mei_voice_normal|いいね
+
+NEXT5 NEXT73:
+    MMD_CAMERA_GET|bad_s CAPTION_START|gene_text|gene_style|もう少し頑張ってみよう|1.0|CENTER|0.22|18000
+
+NEXT73 NEXT7:
+    <eps> SYNTH_START|0|mei_voice_normal|もう少し頑張ってみよう
 
 # 視線画像削除して待機状態へ
 NEXT7 WAIT:

@@ -72,6 +72,7 @@ def send_message(send_bytes: bytes):
 
 # Socket 通信
 sock = None
+
 def connect_mmd():
     global sock
     try:
@@ -103,6 +104,7 @@ def send_to_mmd(text: str):
 
 # Gemini クライアント初期化
 gemini_client = None
+
 if HAS_GEMINI and GEMINI_API_KEY:
     try:
         gemini_client = genai.Client(
@@ -120,10 +122,13 @@ SYSTEM_INSTRUCTION = """
 
 def ask_gemini_and_speak(user_text: str):
     global gemini_client
+
     if not gemini_client:
         return
+
     print(f"\n[LLM思考中...] ユーザー: {user_text}")
     reply_text = ""
+
     for attempt in range(1, 3):
         try:
             response = gemini_client.models.generate_content(
@@ -135,9 +140,11 @@ def ask_gemini_and_speak(user_text: str):
                     max_output_tokens=200,
                 ),
             )
+
             if response and response.text:
                 reply_text = response.text.strip().replace("\n", " ").replace("\r", "")
             break
+
         except Exception:
             if attempt < 2:
                 time.sleep(2)
@@ -150,8 +157,13 @@ def ask_gemini_and_speak(user_text: str):
     reply_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', reply_text)
     reply_text = reply_text.replace("〜", "ー").replace("~", "ー")
     reply_text = re.sub(r'[【】\[\]\(\)（）「」『』<>]', '', reply_text)
-    
-    last_punct = max(reply_text.rfind("。"), reply_text.rfind("！"), reply_text.rfind("？"))
+
+    last_punct = max(
+        reply_text.rfind("。"),
+        reply_text.rfind("！"),
+        reply_text.rfind("？")
+    )
+
     if last_punct != -1:
         reply_text = reply_text[:last_punct + 1]
     else:
@@ -162,18 +174,22 @@ def ask_gemini_and_speak(user_text: str):
 
 def console_input_loop():
     time.sleep(2)
+
     print("\n==================================================")
     print("★ テキスト入力による LLM 応答テストが可能です。")
     print("==================================================\n")
+
     while True:
         try:
             user_input = input()
+
             if user_input.strip():
                 threading.Thread(
-                    target=ask_gemini_and_speak, 
-                    args=(user_input.strip(),), 
+                    target=ask_gemini_and_speak,
+                    args=(user_input.strip(),),
                     daemon=True
                 ).start()
+
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -184,6 +200,7 @@ threading.Thread(target=console_input_loop, daemon=True).start()
 # ==================================================
 def create_graph(data, colors, title, filename):
     plt.rcParams["font.family"] = "Meiryo"
+
     fig = plt.figure(figsize=(12.8, 7.2), dpi=100)
     fig.patch.set_alpha(0)
 
@@ -200,8 +217,10 @@ def create_graph(data, colors, title, filename):
     ax.set_zorder(1)
 
     bars = ax.barh(
-        list(data.keys()), list(data.values()),
-        color=colors, height=0.5
+        list(data.keys()),
+        list(data.values()),
+        color=colors,
+        height=0.5
     )
 
     ax.set_xlim(0, 100)
@@ -213,7 +232,7 @@ def create_graph(data, colors, title, filename):
     for bar, value in zip(bars, data.values()):
         ax.text(
             value + 2,
-            bar.get_y() + bar.get_height()/2,
+            bar.get_y() + bar.get_height() / 2,
             f"{value}%",
             color="black",
             va="center"
@@ -223,30 +242,40 @@ def create_graph(data, colors, title, filename):
         spine.set_visible(False)
 
     base_dir = os.path.dirname(__file__)
-    target_dir = os.path.abspath(os.path.join(base_dir, "..", "Scenarios", "QandA"))
+    target_dir = os.path.abspath(
+        os.path.join(base_dir, "..", "Scenarios", "QandA")
+    )
+
     if not os.path.exists(target_dir):
         target_dir = base_dir
 
     save_path = os.path.join(target_dir, filename + ".png")
+
     plt.savefig(
         save_path,
         dpi=100,
         transparent=False,
         facecolor="none"
     )
+
     plt.close()
 
 # ==================================================
 # MediaPipe & 解析・評価ルーチン
 # ==================================================
 base_dir = os.path.dirname(__file__)
+
 candidates = [
     os.path.abspath(os.path.join(base_dir, "..", "..", "face_landmarker.task")),
     os.path.abspath(os.path.join(base_dir, "..", "face_landmarker.task")),
     os.path.abspath(os.path.join(base_dir, "face_landmarker.task"))
 ]
 
-MODEL_PATH = next((p for p in candidates if os.path.exists(p)), None)
+MODEL_PATH = next(
+    (p for p in candidates if os.path.exists(p)),
+    None
+)
+
 if MODEL_PATH is None:
     print("\n[エラー] face_landmarker.task が見つかりませんでした。")
     exit(1)
@@ -275,6 +304,7 @@ Y_MIN, Y_MAX = 0.42, 0.55
 
 def get_eye_position(landmarks, eye):
     left, right, top, bottom, iris = eye
+
     l, r = landmarks[left], landmarks[right]
     t, b = landmarks[top], landmarks[bottom]
     i = landmarks[iris]
@@ -287,6 +317,7 @@ def get_eye_position(landmarks, eye):
 
     x = (i.x - min(l.x, r.x)) / width
     y = (i.y - min(t.y, b.y)) / height
+
     return x, y
 
 def judge_gaze(x, y):
@@ -294,7 +325,9 @@ def judge_gaze(x, y):
 
 def sisen_s(cap):
     """「言ってみて」受信からの計測・評価メインループ"""
+
     print("【計測開始】視線および表情の解析を実行中...")
+
     start = last = time.monotonic()
     front_seconds = off_seconds = 0.0
     frame_number = 0
@@ -303,6 +336,7 @@ def sisen_s(cap):
     ang = dis = fea = hap = sad = sur = neu = su = 0
 
     with FaceLandmarker.create_from_options(options) as landmarker:
+
         while True:
             ret, frame = cap.read()
             now = time.monotonic()
@@ -312,10 +346,18 @@ def sisen_s(cap):
 
             frame = cv2.flip(frame, 1)
             h, w = frame.shape[:2]
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
-            timestamp = max(int((now - start) * 1000), frame_number)
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = mp.Image(
+                image_format=mp.ImageFormat.SRGB,
+                data=rgb
+            )
+
+            timestamp = max(
+                int((now - start) * 1000),
+                frame_number
+            )
+
             frame_number = timestamp + 1
             result = landmarker.detect_for_video(image, timestamp)
 
@@ -327,15 +369,24 @@ def sisen_s(cap):
 
                 for eye in EYES:
                     pos = get_eye_position(landmarks, eye)
+
                     if pos is not None:
                         positions.append(pos)
 
                     p = landmarks[eye[4]]
-                    cv2.circle(frame, (int(p.x * w), int(p.y * h)), 4, (0, 255, 0), -1)
+
+                    cv2.circle(
+                        frame,
+                        (int(p.x * w), int(p.y * h)),
+                        4,
+                        (0, 255, 0),
+                        -1
+                    )
 
                 if positions:
                     x = sum(p[0] for p in positions) / len(positions)
                     y = sum(p[1] for p in positions) / len(positions)
+
                     detected_front = judge_gaze(x, y)
 
             dt = now - last
@@ -351,54 +402,107 @@ def sisen_s(cap):
 
             # 表情解析 (DeepFace)
             try:
-                analysis = DeepFace.analyze(frame, actions=['emotion'], detector_backend='opencv', enforce_detection=False)
+                analysis = DeepFace.analyze(
+                    frame,
+                    actions=['emotion'],
+                    detector_backend='opencv',
+                    enforce_detection=False
+                )
+
                 if len(analysis) > 0:
                     emotion = analysis[0]["dominant_emotion"]
-                    if emotion == "angry": ang += 1
-                    elif emotion == "disgust": dis += 1
-                    elif emotion == "fear": fea += 1
-                    elif emotion == "happy": hap += 1
-                    elif emotion == "sad": sad += 1
-                    elif emotion == "surprise": sur += 1
-                    elif emotion == "neutral": neu += 1
+
+                    if emotion == "angry":
+                        ang += 1
+                    elif emotion == "disgust":
+                        dis += 1
+                    elif emotion == "fear":
+                        fea += 1
+                    elif emotion == "happy":
+                        hap += 1
+                    elif emotion == "sad":
+                        sad += 1
+                    elif emotion == "surprise":
+                        sur += 1
+                    elif emotion == "neutral":
+                        neu += 1
+
                     su += 1
-            except Exception:
-                pass
+
+            except Exception as e:
+                print(f"【DeepFace解析エラー】{e}")
 
             # 「おつかれさま」受信で計測終了
             msg = recv_message()
+
             if "おつかれさま" in msg:
                 print("【計測終了】「おつかれさま」を受信しました。")
+
+                total = front_seconds + off_seconds
+
+                if su > 0:
+                    ang_w = ang * 100 / su
+                    dis_w = dis * 100 / su
+                    fea_w = fea * 100 / su
+                    hap_w = hap * 100 / su
+                    sad_w = sad * 100 / su
+                    sur_w = sur * 100 / su
+                    neu_w = neu * 100 / su
+                else:
+                    print("【警告】DeepFaceの解析に一度も成功していません。")
+                    ang_w = dis_w = fea_w = hap_w = sad_w = sur_w = 0
+
+                if total > 0:
+                    gaze_result = {
+                        "正面": round(front_seconds / total * 100, 1),
+                        "正面以外": round(off_seconds / total * 100, 1)
+                    }
+                else:
+                    gaze_result = {
+                        "正面": 0,
+                        "正面以外": 0
+                    }
+
+                emotion_result = {
+                    "喜び": round(hap_w, 1),
+                    "嫌悪": round(dis_w, 1),
+                    "怒り": round(ang_w, 1),
+                    "悲しみ": round(sad_w, 1),
+                    "驚き": round(sur_w, 1),
+                    "恐怖": round(fea_w, 1),
+                    "普通": round(neu_w, 1),
+                }
+
+                print("【グラフ生成開始】")
+
+                create_graph(
+                    emotion_result,
+                    ["#36D6E7", "#A78BFA", "#FF7373", "#F5B942", "#6EE7A0", "#41F750","#21AB50"],
+                    "表情評価",
+                    "result_h"
+                )
+
+                create_graph(
+                    gaze_result,
+                    ["#36D6E7", "#FF9B71"],
+                    "視線評価",
+                    "result_s"
+                )
+
+                print("【評価完了】result_h.png および result_s.png を生成しました。")
                 break
 
-    # 結果集計とグラフ保存
-    total = front_seconds + off_seconds
-    if total <= 0: total = 1.0
-    if su <= 0: su = 1
-
-    ang_w = ang * 100 / su
-    dis_w = dis * 100 / su
-    fea_w = fea * 100 / su
-    hap_w = hap * 100 / su
-    sad_w = sad * 100 / su
-    sur_w = sur * 100 / su
-
-    gaze_result = {"正面": round(front_seconds / total * 100, 1), "正面以外": round(off_seconds / total * 100, 1)}
-    emotion_result = {
-        "喜び": round(hap_w, 1), "嫌悪": round(dis_w, 1), "怒り": round(ang_w, 1),
-        "悲しみ": round(sad_w, 1), "驚き": round(sur_w, 1), "恐怖": round(fea_w, 1)
-    }
-
-    create_graph(emotion_result, ["#36D6E7", "#A78BFA", "#FF7373", "#F5B942", "#6EE7A0", "#41F750"], "表情評価", "result_h")
-    create_graph(gaze_result, ["#36D6E7", "#FF9B71"], "視線評価", "result_s")
-    print("【評価完了】result_h.png および result_s.png を生成しました。")
-
+    # ==================================================
     # シナリオ側からの問い合わせに応じた評価イベント送信
+    # ==================================================
     while True:
         msg = recv_message()
+
         if "表情" in msg:
-            time.sleep(2)
+            time.sleep(4)
+
             happy_w = round(hap_w, 1)
+
             if happy_w > 80:
                 send_message(b"verygood_h")
             elif happy_w > 50:
@@ -407,29 +511,36 @@ def sisen_s(cap):
                 send_message(b"bad_h")
 
         if "視線" in msg:
-            time.sleep(2)
+            time.sleep(4)
+
             front_s_w = front_seconds / total * 100
+
             if front_s_w > 80:
                 send_message(b"verygood_s")
             elif front_s_w > 50:
                 send_message(b"good_s")
             else:
                 send_message(b"bad_s")
+
             break
-        time.sleep(0.1)
 
 # ==================================================
 # メインループ
 # ==================================================
 if __name__ == '__main__':
+
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
     # 既存のグラフ画像削除
-    target_folder = os.path.abspath(os.path.join(base_dir, "..", "Scenarios", "QandA"))
+    target_folder = os.path.abspath(
+        os.path.join(base_dir, "..", "Scenarios", "QandA")
+    )
+
     for file in ["result_h.png", "result_s.png"]:
         path = os.path.join(target_folder, file)
+
         if os.path.exists(path):
             try:
                 os.remove(path)
@@ -437,16 +548,22 @@ if __name__ == '__main__':
                 pass
 
     print("【待機中】「言ってみて」のメッセージを受信待ち...")
+
     try:
         if cap.isOpened():
+
             while True:
                 msg = recv_message()
+
                 if "言ってみて" in msg:
                     sisen_s(cap)
                     print("【完了】待機状態に戻ります。")
+
                 time.sleep(0.1)
+
     except KeyboardInterrupt:
         print("\n【終了】プログラムを終了します。")
+
     finally:
         cap.release()
         cv2.destroyAllWindows()
